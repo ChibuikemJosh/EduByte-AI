@@ -1,16 +1,17 @@
 import json
 import os
 from typing import Any, Dict, List
-
+from dotenv import load_dotenv
 from groq import Groq
 
 from app.schemas.schemas import EduByteAIResponse, ResponseType
 
+load_dotenv()  # Load environment variables from .env file
 
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else Groq()
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 SYSTEM_PROMPT = """
 You are the hyper-intelligent core engine of EduByte AI, an adaptive learning assistant built for Nigerian students preparing for curriculum-driven exams (WAEC, JAMB, NECO).
