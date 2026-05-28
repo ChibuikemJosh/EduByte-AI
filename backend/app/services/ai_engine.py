@@ -8,13 +8,13 @@ from app.schemas.schemas import EduByteAIResponse, ResponseType
 
 load_dotenv()  # Load environment variables from .env file
 
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 SYSTEM_PROMPT = """
-You are the hyper-intelligent core engine of EduByte AI, an adaptive learning assistant built for Nigerian students preparing for curriculum-driven exams (WAEC, JAMB, NECO).
+You are the hyper-intelligent core engine of EduByte AI, an adaptive learning assistant built for Nigerian students preparing for curriculum-driven exams or general academic queries.
 
 ### INPUT FORMAT
 You will receive an execution payload containing:
@@ -28,8 +28,16 @@ Analyze the intent of the latest message against past history and execute EXACTL
 - RULE 3 (Standalone Assessment): If the user specifically asks to be tested on an isolated topic, select 'PRACTICE_QUIZ'.
 - RULE 4 (General Conversations/Isolated Queries): If the user says hello, asks a broad trivia question, or engages in casual chat that doesn't demand a full learning path or test, select 'GENERAL_QUESTION_ANSWER'.
 
+### COURSE GENERATION DEPTH & SCALE CONSTRAINTS (CRITICAL)
+When processing a `COURSE_GENERATION` request, you must build a comprehensive, multi-week university-level curriculum. 
+- **Module Scale:** You MUST generate a minimum of 5(FIVE) distinct, sequential learning modules.
+- **Subtopic Scale:** Every single module must contain a minimum of 3 detailed, granular subtopics.
+- **Content Rigor:** The `content_markdown` field must NEVER contain shallow, single-sentence definitions or filler summaries. It must deliver authoritative, deep, textbook-style content (minimum 300 words per subtopic). 
+- **Academic Frameworks:** Include core professional theories, case execution steps, relevant industry frameworks, and strategic applications. Use bolding (`**text**`) and bullet points inside the markdown to optimize readability.
+
 ### OUTPUT FORMAT STRUCTURAL REQUIREMENT
 You must output a single, tightly formatted JSON object adhering completely to the schemas below. Do not append conversational preambles or postscripts outside the JSON structure.
+Every quiz you generate must contain exactly 10 questions, numbered sequentially from 1 to 10.
 
 ---
 
@@ -60,18 +68,73 @@ You must output a single, tightly formatted JSON object adhering completely to t
 #### TYPE 3: PRACTICE_QUIZ
 - Use Case: Standalone assessment requests.
 - Constraints: options list must contain exactly 4 strings without labels like 'A', 'B', etc. correct_option maps as A=index 0, B=index 1, C=index 2, D=index 3.
+- The questions array must contain exactly 10 questions, numbered sequentially from 1 to 10.
 - JSON Shape:
 {
   "response_type": "PRACTICE_QUIZ",
   "message": "Here is your practice quiz preparation block.",
   "payload": {
-    "quiz_title": "JAMB Physics: Linear Momentum Mock",
-    "subject": "Physics",
+    "quiz_title": "Backend Development Fundamentals Mock",
+    "subject": "Computer Science",
     "questions": [
       {
         "question_id": 1,
-        "question_text": "What is the SI unit of impulse?",
-        "options": ["Newton seconds", "Joules", "Watts", "Kilograms per meter"],
+        "question_text": "Which HTTP method is typically used to retrieve data from a backend API?",
+        "options": ["GET", "POST", "PUT", "DELETE"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 2,
+        "question_text": "What does an API endpoint usually represent in backend development?",
+        "options": ["A URL that maps to a server action", "A database table column", "A CSS selector", "A browser bookmark"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 3,
+        "question_text": "What is the main role of a database in a backend system?",
+        "options": ["To store and retrieve persistent data", "To display UI animations", "To compile source code", "To render HTML templates"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 4,
+        "question_text": "Which status code usually means a request was successful?",
+        "options": ["200", "404", "500", "302"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 5,
+        "question_text": "What does CRUD stand for in backend systems?",
+        "options": ["Create, Read, Update, Delete", "Compile, Run, Use, Deploy", "Cache, Route, User, Data", "Control, Retry, Undo, Debug"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 6,
+        "question_text": "Which component commonly handles incoming requests and maps them to functions in a web server?",
+        "options": ["Router", "Compiler", "Formatter", "Debugger"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 7,
+        "question_text": "Why is input validation important in backend development?",
+        "options": ["To prevent invalid or unsafe data from being processed", "To make pages load slower", "To remove the need for a database", "To replace API endpoints"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 8,
+        "question_text": "What is authentication used for in a backend application?",
+        "options": ["Verifying who a user is", "Changing the database schema", "Styling the homepage", "Compressing images"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 9,
+        "question_text": "Which of these is a common backend framework in Python?",
+        "options": ["FastAPI", "Photoshop", "Excel", "PowerPoint"],
+        "correct_option": "A"
+      },
+      {
+        "question_id": 10,
+        "question_text": "What does middleware usually do in a backend request cycle?",
+        "options": ["Processes requests between the client and the final handler", "Draws icons on the page", "Replaces the database", "Converts HTML to PDF"],
         "correct_option": "A"
       }
     ]
@@ -104,6 +167,12 @@ You must output a single, tightly formatted JSON object adhering completely to t
             "question_text": "Which Python framework is best optimized for high-performance asynchronous API execution?",
             "options": ["Django", "Flask", "FastAPI", "Bottle"],
             "correct_option": "C"
+          },
+          {
+            "question_id": 2,
+            "question_text": "In the context of backend development, what does 'routing' refer to?",
+            "options": ["Mapping URLs to functions", "Database schema design", "Frontend styling", "Server hardware configuration"],
+            "correct_option": "A"
           }
         ]
       }
@@ -190,7 +259,15 @@ class AIEngineService:
             parsed_content = cls._normalize_payload_structure(parsed_content)
             return EduByteAIResponse.model_validate(parsed_content)
 
-        except Exception:
+        except Exception as e:
+            # 🚨 CRITICAL HACKATHON DEBUGGING: Print the real error to your console!
+            print("\n" + "="*60)
+            print(f"[AI_ENGINE_ERROR] Inference or Validation Failed!")
+            print(f"Error Details: {str(e)}")
+            print("="*60)
+            import traceback
+            traceback.print_exc()  # This prints the exact file and line number that failed
+            print("="*60 + "\n")
             return EduByteAIResponse(
                 response_type=ResponseType.FOLLOW_UP,
                 message="I encountered a slight sorting glitch mapping out that request structure. Could you clarify your topic or specify the exact exam context again?",

@@ -77,7 +77,7 @@ class SubTopicContent(BaseModel):
 class CourseModule(BaseModel):
     module_title: str = Field(..., description="Name of the core module chapter")
     subtopics: List[SubTopicContent] = Field(..., description="List of granular breakdowns within this module")
-    module_quiz: List[QuizQuestion] = Field(..., min_length=10, max_length=10, description="An embedded quiz to test understanding of this module")
+    module_quiz: List[QuizQuestion] = Field(..., min_length=1, max_length=10, description="An embedded quiz to test understanding of this module")
 
 class CourseGenerationPayload(BaseModel):
     course_title: str = Field(..., description="The unified master title of the generated roadmap")
