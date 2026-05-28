@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List, Dict, Optional, Literal, Union
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # =====================================================================
 # 1. AUTHENTICATION SCHEMAS
@@ -38,38 +39,59 @@ class ResponseType(str, Enum):
     FOLLOW_UP = "FOLLOW_UP"
     COURSE_GENERATION = "COURSE_GENERATION"
     PRACTICE_QUIZ = "PRACTICE_QUIZ"
+    GENERAL_QUESTION_ANSWER = "GENERAL_QUESTION_ANSWER"
 
 # --- Option A: AI Needs Clarification ---
 class FollowUpPayload(BaseModel):
     clarification_text: str = Field(..., description="The highly contextual question asking for necessary exam/topic parameters")
 
 # --- Option B: AI Generates Full Course Outline & Content ---
+class QuizQuestion(BaseModel):
+    question_id: int = Field(..., description="Serial index of the question (e.g., 1, 2, 3...)")
+    question_text: str = Field(..., description="The problem or question being asked")
+    options: List[str] = Field(..., min_items=4, max_items=4, description="List of exactly 4 choices (strings only, do not include letters like A, B, C, D)")
+    correct_option: Literal["A", "B", "C", "D"] = Field(..., description="A maps to index 0, B to index 1, C to index 2, D to index 3")
+
 class SubTopicContent(BaseModel):
     title: str = Field(..., description="Subtopic title")
     content_markdown: str = Field(..., description="Deep textbook-style content, explanations, and key rules")
-    examples: List[str] = Field(..., description="Real-world practical examples or worked mathematical proofs relevant to the topic")
+    examples: List[str] = Field(default_factory=list, description="Real-world practical examples or worked mathematical proofs relevant to the topic")
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_examples(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+
+        if "examples" not in value and "example" in value:
+            example_value = value.pop("example")
+            if isinstance(example_value, list):
+                value["examples"] = example_value
+            elif example_value is None:
+                value["examples"] = []
+            else:
+                value["examples"] = [example_value]
+
+        return value
 
 class CourseModule(BaseModel):
     module_title: str = Field(..., description="Name of the core module chapter")
     subtopics: List[SubTopicContent] = Field(..., description="List of granular breakdowns within this module")
+    module_quiz: List[QuizQuestion] = Field(..., min_length=10, max_length=10, description="An embedded quiz to test understanding of this module")
 
 class CourseGenerationPayload(BaseModel):
     course_title: str = Field(..., description="The unified master title of the generated roadmap")
     subject: str = Field(..., description="The overriding academic category (e.g., Further Mathematics, JAMB Chemistry)")
     modules: List[CourseModule] = Field(..., description="Structured hierarchical timeline of learning modules")
-    estimated_minutes: int = Field(..., description="Total time budget needed to process this concept framework")
-
-# --- Option C: AI Generates An Interactive Assessment Gate ---
-class QuizQuestion(BaseModel):
-    question_id: int = Field(..., description="Chronological sequence index")
-    question_text: str = Field(..., description="The actual problem vector definition")
-    options: Dict[str, str] = Field(..., description="A dictionary map of choices. Must explicitly be keys: A, B, C, D")
-    correct_option: Literal["A", "B", "C", "D"] = Field(..., description="The exact correct key mapping parameter")
 
 class PracticeQuizPayload(BaseModel):
     quiz_title: str = Field(..., description="The specific tracking assessment module header name")
     subject: str = Field(...)
-    questions: List[QuizQuestion] = Field(..., description="List of 10 to 20 structured quiz arrays")
+    questions: List[QuizQuestion] = Field(..., min_length=1, description="List of structured quiz questions")
+
+# --- Option D: General Explanations or Greetings ---
+class GeneralQuestionPayload(BaseModel):
+    answer: str = Field(..., description="The conversational answer or academic explanation provided by the AI")
 
 # --- Universal Unified Wrapper using Pydantic Discriminator ---
 class EduByteAIResponse(BaseModel):
@@ -79,7 +101,7 @@ class EduByteAIResponse(BaseModel):
     message: str = Field(..., description="General fallback conversational text for the chat interface interface layer")
     
     # Polymorphic nested blocks based on the evaluation choice made above
-    payload: Union[FollowUpPayload, CourseGenerationPayload, PracticeQuizPayload] = Field(..., description="The validated machine-readable nested payload tracking data execution contracts")
+    payload: Union[FollowUpPayload, CourseGenerationPayload, PracticeQuizPayload, GeneralQuestionPayload] = Field(..., description="The validated machine-readable nested payload tracking data execution contracts")
 
 # =====================================================================
 # 4. PROGRESS & QUIZ SUBMISSION TRAFFIC SCHEMAS
