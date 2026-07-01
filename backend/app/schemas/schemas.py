@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import List, Dict, Optional, Literal, Union
-
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, EmailStr
 
 # =====================================================================
 # 1. AUTHENTICATION SCHEMAS
@@ -9,12 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class UserRegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, examples=["chy_codes"])
-    email: str = Field(..., examples=["chidi@edubyte.ng"])
+    # 💡 UPGRADE: Uses EmailStr for native automated format validation
+    email: EmailStr = Field(..., examples=["chidi@edubyte.ng"])
     phone_number: Optional[str] = Field(None, description="International format, e.g., +2348012345678", examples=["+2348012345678"])
     password: str = Field(..., min_length=6, description="Raw password to be hashed by the backend")
 
 class UserLoginRequest(BaseModel):
-    # Flexible login allowing username, email, or WhatsApp phone number
     login_identifier: str = Field(..., description="Can be email, username, or WhatsApp phone number")
     password: str = Field(...)
 
@@ -37,7 +36,8 @@ class ChatRequest(BaseModel):
 
 class ResponseType(str, Enum):
     FOLLOW_UP = "FOLLOW_UP"
-    COURSE_GENERATION = "COURSE_GENERATION"
+    COURSE_OUTLINE = "COURSE_OUTLINE"      # 💡 NEW: Step 1 Blueprint
+    MODULE_CONTENT = "MODULE_CONTENT"      # 💡 NEW: Step 2 Lazy-loaded content block
     PRACTICE_QUIZ = "PRACTICE_QUIZ"
     GENERAL_QUESTION_ANSWER = "GENERAL_QUESTION_ANSWER"
 
@@ -45,24 +45,23 @@ class ResponseType(str, Enum):
 class FollowUpPayload(BaseModel):
     clarification_text: str = Field(..., description="The highly contextual question asking for necessary exam/topic parameters")
 
-# --- Option B: AI Generates Full Course Outline & Content ---
+# --- Common Reusable Core Components ---
 class QuizQuestion(BaseModel):
     question_id: int = Field(..., description="Serial index of the question (e.g., 1, 2, 3...)")
     question_text: str = Field(..., description="The problem or question being asked")
-    options: List[str] = Field(..., min_items=4, max_items=4, description="List of exactly 4 choices (strings only, do not include letters like A, B, C, D)")
-    correct_option: Literal["A", "B", "C", "D"] = Field(..., description="A maps to index 0, B to index 1, C to index 2, D to index 3")
+    options: List[str] = Field(..., min_length=4, max_length=4, description="List of exactly 4 choices (strings only)")
+    correct_option: Literal["A", "B", "C", "D"] = Field(..., description="A=Index 0, B=Index 1, C=Index 2, D=Index 3")
 
 class SubTopicContent(BaseModel):
     title: str = Field(..., description="Subtopic title")
     content_markdown: str = Field(..., description="Deep textbook-style content, explanations, and key rules")
-    examples: List[str] = Field(default_factory=list, description="Real-world practical examples or worked mathematical proofs relevant to the topic")
+    examples: List[str] = Field(default_factory=list, description="Real-world practical examples")
 
     @model_validator(mode="before")
     @classmethod
     def normalize_examples(cls, value: object) -> object:
         if not isinstance(value, dict):
             return value
-
         if "examples" not in value and "example" in value:
             example_value = value.pop("example")
             if isinstance(example_value, list):
@@ -71,37 +70,51 @@ class SubTopicContent(BaseModel):
                 value["examples"] = []
             else:
                 value["examples"] = [example_value]
-
         return value
 
-class CourseModule(BaseModel):
+# --- 💡 NEW Option B: Call 1 Blueprint Structure (Syllabus Architecture) ---
+class ModuleOutline(BaseModel):
+    module_number: int = Field(..., description="Sequence placement identifier")
+    module_title: str = Field(..., description="High-level title of the module segment")
+    subtopic_titles: List[str] = Field(..., description="Simple array of text titles to build the structural skeleton layout")
+
+class CourseOutlinePayload(BaseModel):
+    course_title: str = Field(..., description="Master title of the generated course roadmap")
+    subject: str = Field(..., description="The category domain profile classification")
+    modules: List[ModuleOutline] = Field(..., description="The skeleton outline framework mapping")
+
+# --- 💡 NEW Option C: Call 2 + Lazy Loading Content Blocks ---
+class ModuleContentPayload(BaseModel):
+    module_number: int = Field(..., description="Identifies which structural node this content hydrator belongs to")
     module_title: str = Field(..., description="Name of the core module chapter")
-    subtopics: List[SubTopicContent] = Field(..., description="List of granular breakdowns within this module")
-    module_quiz: List[QuizQuestion] = Field(..., min_length=1, max_length=10, description="An embedded quiz to test understanding of this module")
+    subtopics: List[SubTopicContent] = Field(..., description="Deep text-filled paragraphs")
+    module_quiz: List[QuizQuestion] = Field(..., min_length=10, max_length=10, description="Strictly 10 questions")
 
-class CourseGenerationPayload(BaseModel):
-    course_title: str = Field(..., description="The unified master title of the generated roadmap")
-    subject: str = Field(..., description="The overriding academic category (e.g., Further Mathematics, JAMB Chemistry)")
-    modules: List[CourseModule] = Field(..., description="Structured hierarchical timeline of learning modules")
-
+# --- Option D: Standalone Assessments ---
 class PracticeQuizPayload(BaseModel):
     quiz_title: str = Field(..., description="The specific tracking assessment module header name")
     subject: str = Field(...)
-    questions: List[QuizQuestion] = Field(..., min_length=1, description="List of structured quiz questions")
+    questions: List[QuizQuestion] = Field(..., min_length=10, max_length=10, description="Strictly 10 questions")
 
-# --- Option D: General Explanations or Greetings ---
+# --- Option E: General Explanations or Greetings ---
 class GeneralQuestionPayload(BaseModel):
-    answer: str = Field(..., description="The conversational answer or academic explanation provided by the AI")
+    answer: str = Field(..., description="The conversational answer or academic explanation")
 
-# --- Universal Unified Wrapper using Pydantic Discriminator ---
+# --- Universal Unified Wrapper using Explicit Pydantic Discriminator ---
 class EduByteAIResponse(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     
     response_type: ResponseType = Field(..., description="Determines which structural model layout is being evaluated")
-    message: str = Field(..., description="General fallback conversational text for the chat interface interface layer")
+    message: str = Field(..., description="General fallback conversational text for the user interface layout layer")
     
-    # Polymorphic nested blocks based on the evaluation choice made above
-    payload: Union[FollowUpPayload, CourseGenerationPayload, PracticeQuizPayload, GeneralQuestionPayload] = Field(..., description="The validated machine-readable nested payload tracking data execution contracts")
+    # 💡 UPGRADE: Explicit discriminator allows blazing-fast lookups based on the 'response_type' value
+    payload: Union[
+        FollowUpPayload, 
+        CourseOutlinePayload, 
+        ModuleContentPayload, 
+        PracticeQuizPayload, 
+        GeneralQuestionPayload
+    ] = Field(..., discriminator="response_type")
 
 # =====================================================================
 # 4. PROGRESS & QUIZ SUBMISSION TRAFFIC SCHEMAS

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Table, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -18,11 +18,13 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, nullable=False, index=True)
+    username = Column(String, unique=False, nullable=False, index=True) # Set unique=True if names must be unique
     email = Column(String, unique=True, nullable=False, index=True)
     phone_number = Column(String, unique=True, nullable=True, index=True) # Optional for WhatsApp integration
     password_hash = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.now(datetime.timezone.utc))
+    
+    # 💡 FIX: Wrapped in lambda to evaluate dynamically on creation
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     progress_records = relationship("UserProgress", back_populates="user", cascade="all, delete-orphan")
@@ -36,14 +38,17 @@ class Module(Base):
     title = Column(String, nullable=False)
     subject = Column(String, nullable=False)  # e.g., "Mathematics", "Computer Science"
     content_body = Column(String, nullable=True) # The core AI-generated study material
-    created_at = Column(DateTime, default=datetime.now(datetime.timezone.utc))
+    
+    # 💡 FIX: Wrapped in lambda
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Graph Relationship: Self-referential many-to-many
+    # 💡 FIX: Explicitly used class string names to prevent binding compilation errors
     prerequisites = relationship(
         "Module",
         secondary=prerequisite_edges,
-        primaryjoin=id == prerequisite_edges.c.child_id,
-        secondaryjoin=id == prerequisite_edges.c.parent_id,
+        primaryjoin="Module.id == prerequisite_edges.c.child_id",
+        secondaryjoin="Module.id == prerequisite_edges.c.parent_id",
         backref="dependent_modules"
     )
     
@@ -60,7 +65,13 @@ class UserProgress(Base):
     # Adaptive states: 'LOCKED', 'UNLOCKED', 'COMPLETED'
     status = Column(String, default="LOCKED", nullable=False)
     quiz_score = Column(Integer, nullable=True) # Out of 100, stored when they pass the gate
-    updated_at = Column(DateTime, default=datetime.now(datetime.timezone.utc), onupdate=datetime.now(datetime.timezone.utc))
+    
+    # 💡 FIX: Dynamic timestamp parameters on both standard insert and record update actions
+    updated_at = Column(
+        DateTime, 
+        default=lambda: datetime.now(timezone.utc), 
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
 
     # Relationships
     user = relationship("User", back_populates="progress_records")
@@ -71,12 +82,22 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
+    
+    # 💡 FIX: Moved comment back to its correct context field
     session_id = Column(String, unique=True, nullable=False, index=True) # Generated UUID or WhatsApp Phone Number
+    
+    # Dynamically generated chat title for user-facing history lists
+    title = Column(String(255), default="New Chat", nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     # Store complete raw chat history as a highly optimized compressed JSONB Array
-    # Matches perfectly with what your classmate's TurboQuant or basic history state needs.
     history_meta = Column(JSONB, default=[], nullable=False) 
-    updated_at = Column(DateTime, default=datetime.now(datetime.timezone.utc), onupdate=datetime.now(datetime.timezone.utc))
+    
+    # 💡 FIX: Setup dynamically executed callables
+    updated_at = Column(
+        DateTime, 
+        default=lambda: datetime.now(timezone.utc), 
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
 
     user = relationship("User", back_populates="chat_sessions")
