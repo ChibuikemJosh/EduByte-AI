@@ -3,7 +3,10 @@ import os
 import sys
 
 # Ensure the backend root folder is added to your Python path so imports resolve cleanly
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Insert the `backend` folder first so `app` package imports resolve when running this script.
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 from app.services.ai_engine import AIEngineService
 from app.schemas.schemas import (
@@ -17,9 +20,8 @@ from app.schemas.schemas import (
 async def run_ai_engine_test():
     print("🚀 Initializing EduByte AI Engine Integration Test...")
     
-    current_user_message = "I want to learn introductory backend web development with Python from scratch for my school project."
+    current_user_message = "I want to learn introductory backend web development with Python Fast API from scratch for my school project. I want to learn it as a complete beginner to fastapi and backend web development but have used python before. I want to learn the basics and everything about python fastapi and backend web development that is needed. I want to learn it within 4 weeks or 1 month. I want to learn the basics of buiulding an entire backend with database too for a website. I have not used database and web development frameworks ever before and i am looking to learn the basics of backen web development, fastapi, and datbase integration with sqlite and yeah recommend aproject after generating the course i want you to generate please do not ask me any othwer follow up question i have answered almost all of them"
     mock_chat_history = []
-    
     try:
         print("\n📡 Dispatching pipeline generation call to Groq...")
         
