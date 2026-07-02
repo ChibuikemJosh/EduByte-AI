@@ -43,6 +43,7 @@ class ResponseType(str, Enum):
 
 # --- Option A: AI Needs Clarification ---
 class FollowUpPayload(BaseModel):
+    response_type: Literal[ResponseType.FOLLOW_UP] = Field(ResponseType.FOLLOW_UP, description="Explicitly identifies this payload as a follow-up request")
     clarification_text: str = Field(..., description="The highly contextual question asking for necessary exam/topic parameters")
 
 # --- Common Reusable Core Components ---
@@ -80,12 +81,14 @@ class ModuleOutline(BaseModel):
 
 # --- 💡 NEW Option C: Call 2 + Lazy Loading Content Blocks ---
 class ModuleContentPayload(BaseModel):
+    response_type: Literal[ResponseType.MODULE_CONTENT] = Field(ResponseType.MODULE_CONTENT, description="Explicitly identifies this payload as a module content block")
     module_number: int = Field(..., description="Identifies which structural node this content hydrator belongs to")
     module_title: str = Field(..., description="Name of the core module chapter")
     subtopics: List[SubTopicContent] = Field(..., description="Deep text-filled paragraphs")
     module_quiz: List[QuizQuestion] = Field(..., min_length=10, max_length=10, description="Strictly 10 questions")
 
 class CourseOutlinePayload(BaseModel):
+    response_type: Literal[ResponseType.COURSE_OUTLINE] = Field(ResponseType.COURSE_OUTLINE, description="Explicitly identifies this payload as a course outline blueprint")
     course_title: str = Field(..., description="Master title of the generated course roadmap")
     subject: str = Field(..., description="The category domain profile classification")
     # 💡 ALLOW EITHER SKELETON OR FULLY HYDRATED MODULES IN THE LIST
@@ -93,12 +96,14 @@ class CourseOutlinePayload(BaseModel):
 
 # --- Option D: Standalone Assessments ---
 class PracticeQuizPayload(BaseModel):
+    response_type: Literal[ResponseType.PRACTICE_QUIZ] = Field(ResponseType.PRACTICE_QUIZ, description="Explicitly identifies this payload as a practice quiz")
     quiz_title: str = Field(..., description="The specific tracking assessment module header name")
     subject: str = Field(...)
     questions: List[QuizQuestion] = Field(..., min_length=10, max_length=10, description="Strictly 10 questions")
 
 # --- Option E: General Explanations or Greetings ---
 class GeneralQuestionPayload(BaseModel):
+    response_type: Literal[ResponseType.GENERAL_QUESTION_ANSWER] = Field(ResponseType.GENERAL_QUESTION_ANSWER, description="Explicitly identifies this payload as a general question answer")
     answer: str = Field(..., description="The conversational answer or academic explanation")
 
 # --- Universal Unified Wrapper using Explicit Pydantic Discriminator ---

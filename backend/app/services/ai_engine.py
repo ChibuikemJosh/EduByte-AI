@@ -483,5 +483,5 @@ class AIEngineService:
             return EduByteAIResponse(
                 response_type=ResponseType.FOLLOW_UP,
                 message="I encountered an extraction error setting up your track paths. Could you clarify your syllabus details?",
-                payload=FollowUpPayload(clarification_text="Please refine your targeted learning request.")
+                payload=FollowUpPayload(response_type=ResponseType.FOLLOW_UP, clarification_text="Please refine your targeted learning request.")
             )
