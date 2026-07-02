@@ -1,7 +1,8 @@
 import asyncio
 import json
+import logging
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -294,6 +295,9 @@ You are given the Master Module Title and a list of all accompanying subtopics t
 - Use clear Markdown formatting headers, bold terms, and descriptive bullet lists.
 - Provide a list of real-world code snippets or practical execution examples inside the `examples` array.
 
+### JSON SAFETY NOTE
+- When producing `content_markdown` or any string fields, do NOT use triple quotes (\"\"\"), raw code fences (```), unescaped backticks, or any constructs that would make the JSON invalid when parsed in Python. Keep strings plain and JSON-safe. Escape quotes and newlines as needed.
+
 ### OUTPUT JSON FORMAT
 {
   "title": "Target Subtopic Name",
@@ -317,15 +321,123 @@ You are provided with the conversation history and context records to ensure ali
 - Double-check that your 'correct_option' character explicitly maps to the exact index of your text array option string (A=Index 0, B=Index 1, C=Index 2, D=Index 3).
 - Options arrays must be clean text choice strings without alphabetical prefixes like 'A)' or '1. '.
 
-### OUTPUT JSON FORMAT
-[
-  {
-    "question_id": 1,
-    "question_text": "Which component manages data persistence layer requirements safely?",
-    "options": ["Database management system", "Frontend layout wrapper", "CSS utility module", "Browser state cookie"],
-    "correct_option": "A"
+### JSON SAFETY NOTE
+- Produce JSON-safe strings only: avoid triple quotes (\"\"\"), code fences, and raw backticks. Ensure all string fields are safe to embed in Python JSON parsing.
+
+[INPUT]: "Give me a quick quiz on introductory Python mechanics."
+[OUTPUT]:
+{
+  "response_type": "PRACTICE_QUIZ",
+  "message": "Here is your balanced python evaluation layout.",
+  "payload": {
+    "quiz_title": "Python Syntax Basics",
+    "subject": "Computer Science",
+    "questions": [
+      { "question_id": 1, "question_text": "Which function outputs text to the console?", "options": ["input", "print", "output", "display"], "correct_option": "B" },
+      { "question_id": 2, "question_text": "What is the correct symbol for assigning variables?", "options": ["==", ":=", "=", "->"], "correct_option": "C" },
+      { "question_id": 3, "question_text": "Which data type represents a decimal number?", "options": ["Float", "Integer", "String", "Boolean"], "correct_option": "A" },
+      { "question_id": 4, "question_text": "What does the keyword 'def' initiate?", "options": ["Class definition", "Loop iteration", "Function creation", "Module import"], "correct_option": "C" },
+      { "question_id": 5, "question_text": "Which collection type is declared using square brackets?", "options": ["Tuple", "Dictionary", "List", "Set"], "correct_option": "C" },
+      { "question_id": 6, "question_text": "How do you add a single line comment in Python?", "options": ["// Text", "/* Text */", "# Text", ""], "correct_option": "A" },
+      { "question_id": 7, "question_text": "Which logical operator checks if both conditions are true?", "options": ["and", "or", "not", "xor"], "correct_option": "A" },
+      { "question_id": 8, "question_text": "What does the method '.append()' do on a list?", "options": ["Removes the item", "Adds item to the end", "Sorts the elements", "Copies data structures"], "correct_option": "B" },
+      { "question_id": 9, "question_text": "Which statement escapes a loop execution entirely?", "options": ["continue", "break", "pass", "exit"], "correct_option": "B" },
+      { "question_id": 10, "question_text": "What does a Boolean value encapsulate?", "options": ["Numeric strings", "True or False values", "File pointers", "Character sequences"], "correct_option": "B" }
+    ]
   }
-]
+}
+
+[INPUT]: "Test my knowledge on Nigerian civic history."
+[OUTPUT]:
+{
+  "response_type": "PRACTICE_QUIZ",
+  "message": "Here is your balanced civic history assessment matrix.",
+  "payload": {
+    "quiz_title": "Nigerian National Identity",
+    "subject": "Civic Education",
+    "questions": [
+      { "question_id": 1, "question_text": "Who is recognized as Nigeria's first Prime Minister?", "options": ["Nnamdi Azikiwe", "Abubakar Tafawa Balewa", "Obafemi Awolowo", "Ahmadu Bello"], "correct_option": "B" },
+      { "question_id": 2, "question_text": "What color represents peace on the national flag?", "options": ["Green", "White", "Red", "Yellow"], "correct_option": "B" },
+      { "question_id": 3, "question_text": "Which year did Nigeria become a republic?", "options": ["1960", "1963", "1970", "1999"], "correct_option": "B" },
+      { "question_id": 4, "question_text": "What does the eagle on the coat of arms stand for?", "options": ["Dignity", "Strength", "Peace", "Agriculture"], "correct_option": "B" },
+      { "question_id": 5, "question_text": "How many geopolitical zones exist in Nigeria?", "options": ["Four", "Six", "Eight", "Ten"], "correct_option": "B" },
+      { "question_id": 6, "question_text": "Which tier handles local government administration?", "options": ["State", "Federal", "Third tier", "Judicial branch"], "correct_option": "C" },
+      { "question_id": 7, "question_text": "What represents the rich agricultural land on our coat of arms?", "options": ["The Horses", "The Black Shield", "The Coiling Ribbon", "The Green Bloomed Flowers"], "correct_option": "B" },
+      { "question_id": 8, "question_text": "Who is known as the doyen of Nigerian nationalism?", "options": ["Herbert Macaulay", "Gani Fawehinmi", "Wole Soyinka", "Chinua Achebe"], "correct_option": "A" },
+      { "question_id": 9, "question_text": "What is the supreme code of law in Nigeria?", "options": ["Customary Decrees", "The Constitution", "State Edicts", "Local Ordinances"], "correct_option": "B" },
+      { "question_id": 10, "question_text": "Which currency token replaced the Pound system in 1973?", "options": ["Dollar", "Naira", "Cedi", "Franc"], "correct_option": "B" }
+    ]
+  }
+}
+
+[INPUT]: "Create a test checking basic english grammar conjunctions."
+[OUTPUT]:
+{
+  "response_type": "PRACTICE_QUIZ",
+  "message": "Conjunction mechanics testing module mapped.",
+  "payload": {
+    "quiz_title": "Grammar Conjunctions",
+    "subject": "English Language",
+    "questions": [
+      { "question_id": 1, "question_text": "I wanted to attend, ___ I was too tired.", "options": ["and", "but", "or", "so"], "correct_option": "B" },
+      { "question_id": 2, "question_text": "You can have either the apple ___ the orange.", "options": ["nor", "or", "and", "but"], "correct_option": "B" },
+      { "question_id": 3, "question_text": "He wore a thick coat ___ it was freezing.", "options": ["because", "although", "unless", "while"], "correct_option": "A" },
+      { "question_id": 4, "question_text": "She studied hard, ___ she cleared the exam.", "options": ["yet", "so", "but", "since"], "correct_option": "B" },
+      { "question_id": 5, "question_text": "We cannot play soccer ___ it stops raining.", "options": ["until", "because", "while", "though"], "correct_option": "A" },
+      { "question_id": 6, "question_text": "He is neither smart ___ hardworking.", "options": ["or", "nor", "and", "but"], "correct_option": "B" },
+      { "question_id": 7, "question_text": "Take an umbrella ___ it rains heavily.", "options": ["in case", "although", "but", "unless"], "correct_option": "A" },
+      { "question_id": 8, "question_text": "Chidi won the prize ___ he practiced daily.", "options": ["unless", "for", "since", "yet"], "correct_option": "C" },
+      { "question_id": 9, "question_text": "I like both milk ___ cheese products.", "options": ["or", "and", "but", "also"], "correct_option": "B" },
+      { "question_id": 10, "question_text": "He managed to finish ___ starting quite late.", "options": ["despite", "although", "because", "whereas"], "correct_option": "A" }
+    ]
+  }
+}
+
+[INPUT]: "Test me on introductory biology cell organelle components."
+[OUTPUT]:
+{
+  "response_type": "PRACTICE_QUIZ",
+  "message": "Cell structures parsing layout complete.",
+  "payload": {
+    "quiz_title": "Cell Biology Structures",
+    "subject": "Biology",
+    "questions": [
+      { "question_id": 1, "question_text": "Which organelle serves as the cell powerhouse?", "options": ["Nucleus", "Mitochondrion", "Ribosome", "Lysosome"], "correct_option": "B" },
+      { "question_id": 2, "question_text": "Where is the genetic master blueprint DNA located?", "options": ["Cytoplasm", "Nucleus", "Golgi Body", "Cell Wall"], "correct_option": "B" },
+      { "question_id": 3, "question_text": "Which asset performs structural protein synthesis?", "options": ["Ribosome", "Vacuole", "Centriole", "Chloroplast"], "correct_option": "A" },
+      { "question_id": 4, "question_text": "What wrapper maintains exclusive shape inside plants?", "options": ["Cell Membrane", "Cell Wall", "Capsule", "Cytoskeleton"], "correct_option": "B" },
+      { "question_id": 5, "question_text": "Which organelle packages molecular secretory materials?", "options": ["Golgi apparatus", "Endoplasmic Reticulum", "Peroxisome", "Nucleolus"], "correct_option": "A" },
+      { "question_id": 6, "question_text": "What green element executes plant photosynthesis?", "options": ["Mitochondria", "Chloroplast", "Leucoplast", "Chromoplast"], "correct_option": "B" },
+      { "question_id": 7, "question_text": "Which sack handles waste disposal processing?", "options": ["Ribosome", "Lysosome", "Centrosome", "Plasmid"], "correct_option": "B" },
+      { "question_id": 8, "question_text": "What fluid fills space inside cell boundaries?", "options": ["Cytoplasm", "Nucleoplasm", "Sap", "Water"], "correct_option": "A" },
+      { "question_id": 9, "question_text": "Which structure controls incoming traffic flux?", "options": ["Nuclear Wall", "Cell Membrane", "Capsule Layers", "Tonoplast"], "correct_option": "B" },
+      { "question_id": 10, "question_text": "What huge center acts as fluid storage in plants?", "options": ["Nucleus", "Central Vacuole", "Lysosome Unit", "Golgi Sack"], "correct_option": "B" }
+    ]
+  }
+}
+
+[INPUT]: "Generate an economics quiz testing basic market demand laws."
+[OUTPUT]:
+{
+  "response_type": "PRACTICE_QUIZ",
+  "message": "Market mechanics testing sequence initiated.",
+  "payload": {
+    "quiz_title": "Demand Laws Analysis",
+    "subject": "Economics",
+    "questions": [
+      { "question_id": 1, "question_text": "What path does a normal demand curve assume?", "options": ["Upward sloping", "Downward sloping", "Horizontal", "Vertical"], "correct_option": "B" },
+      { "question_id": 2, "question_text": "If pricing points drop, consumer demand volume ___", "options": ["Contracts", "Expands", "Stagnates", "Disappears"], "correct_option": "B" },
+      { "question_id": 3, "question_text": "What primary variable dictates demand curve shifting?", "options": ["Product price", "Consumer Income levels", "Production costs", "Tax changes"], "correct_option": "B" },
+      { "question_id": 4, "question_text": "Goods consumed jointly are known as ___", "options": ["Substitutes", "Complementary goods", "Giffen items", "Inferior items"], "correct_option": "B" },
+      { "question_id": 5, "question_text": "What metric charts buyer responsive sensitivity?", "options": ["Utility scales", "Elasticity of Demand", "Supply indexation", "Equilibrium margins"], "correct_option": "B" },
+      { "question_id": 6, "question_text": "An elasticity coefficient exactly matching zero means:", "options": ["Perfect elastic", "Perfect inelastic", "Unitary elastic", "Relative elastic"], "correct_option": "B" },
+      { "question_id": 7, "question_text": "If the price of beef jumps, the demand for fish will ___", "options": ["Contract", "Increase", "Drop completely", "Flatten out"], "correct_option": "B" },
+      { "question_id": 8, "question_text": "What scheduling table aligns pricing to buying intents?", "options": ["Supply plan", "Demand Schedule", "Market Registry", "Cost Curve Chart"], "correct_option": "B" },
+      { "question_id": 9, "question_text": "Which item represents an exception to demand laws?", "options": ["Normal goods", "Veblen luxury goods", "Complementary goods", "Substitutes"], "correct_option": "B" },
+      { "question_id": 10, "question_text": "Market equilibrium occurs precisely when ___", "options": ["Supply exceeds demands", "Demand equals Supply values", "Prices drop to absolute zero", "Governments freeze standard trading"], "correct_option": "B" }
+    ]
+  }
+}
 """.strip()
 
 
@@ -341,11 +453,22 @@ class AIEngineService:
         return context_block
 
     @staticmethod
-    def _normalize_response_content(raw_content: str) -> Any:
-        try:
-            return json.loads(raw_content)
-        except json.JSONDecodeError as exc:
-            raise ValueError("Groq response was not valid JSON.") from exc
+    def _normalize_response_content(raw_content: Any) -> Any:
+      # Accept dicts (already parsed), JSON strings, or None/empty values.
+      if isinstance(raw_content, dict):
+        return raw_content
+
+      if raw_content is None:
+        return {}
+
+      if isinstance(raw_content, str) and raw_content.strip() == "":
+        return {}
+
+      try:
+        return json.loads(raw_content)
+      except (json.JSONDecodeError, TypeError) as exc:
+        logging.warning("Groq response was not valid JSON: %s", exc)
+        return {}
 
     # =====================================================================
     # 💡 NEW MICRO-FUNCTION: Generates one isolated subtopic text section
@@ -427,11 +550,18 @@ class AIEngineService:
                 temperature=0.10,
             ) if client else None
 
-            raw_content = "{}"
-            if response and response.choices and response.choices[0].message.content is not None:
+            raw_content = None
+            if response and getattr(response, "choices", None):
+              try:
                 raw_content = response.choices[0].message.content
+              except Exception:
+                raw_content = None
 
             parsed_content = cls._normalize_response_content(raw_content)
+
+            # Default missing top-level response_type to FOLLOW_UP for safety
+            if not parsed_content.get("response_type"):
+              parsed_content["response_type"] = ResponseType.FOLLOW_UP.value
 
             # ⚡️ THE ASYNC PARALLEL GATHER INTERACTION PIPELINE
             if parsed_content.get("response_type") == ResponseType.COURSE_OUTLINE.value:
@@ -470,8 +600,149 @@ class AIEngineService:
 
             # Inject response discriminator values to satisfy Pydantic validations cleanly
             if "response_type" in parsed_content and "payload" in parsed_content:
-                if isinstance(parsed_content["payload"], dict):
-                    parsed_content["payload"]["response_type"] = parsed_content["response_type"]
+              if isinstance(parsed_content["payload"], dict):
+                parsed_content["payload"].setdefault("response_type", parsed_content["response_type"])
+
+            # Lightweight quiz validator: find any quiz arrays and validate count and balance
+            def _validate_quiz_questions(questions: list[dict]) -> Tuple[bool, str]:
+              if not isinstance(questions, list):
+                return False, "questions must be a list"
+              if len(questions) != 10:
+                return False, "quiz must contain exactly 10 questions"
+              counts = {"A": 0, "B": 0, "C": 0, "D": 0}
+              for q in questions:
+                opt = q.get("correct_option")
+                if opt in counts:
+                  counts[opt] += 1
+              if any(v > 4 for v in counts.values()):
+                return False, "correct options distribution is unbalanced"
+              return True, ""
+
+            # Scan payload for quiz lists at common locations
+            def _scan_and_validate(obj: Any) -> Tuple[bool, str]:
+              if isinstance(obj, dict):
+                # direct practice quiz
+                q = obj.get("questions")
+                if q is not None:
+                  return _validate_quiz_questions(q)
+                # module content with module_quiz
+                mq = obj.get("module_quiz")
+                if mq is not None:
+                  return _validate_quiz_questions(mq)
+                # nested modules list
+                mods = obj.get("modules")
+                if mods:
+                  for m in mods:
+                    ok, reason = _scan_and_validate(m)
+                    if not ok:
+                      return ok, reason
+              elif isinstance(obj, list):
+                for item in obj:
+                  ok, reason = _scan_and_validate(item)
+                  if not ok:
+                    return ok, reason
+              return True, ""
+
+            ok, reason = _scan_and_validate(parsed_content.get("payload"))
+            if not ok:
+              # Attempt automated regeneration and rebalancing before asking user for follow-up
+              def _find_quiz_location(obj: Any) -> Tuple[str, dict, str, list] | None:
+                # returns (kind, parent_dict, module_title, subtopics_list)
+                if isinstance(obj, dict):
+                  if obj.get("questions") is not None:
+                    return ("practice", obj, obj.get("quiz_title", "General"), [])
+                  if obj.get("module_quiz") is not None:
+                    # try to infer module title and subtopics
+                    subs = []
+                    subs_raw = obj.get("subtopics") or obj.get("subtopic_titles")
+                    if isinstance(subs_raw, list):
+                      for s in subs_raw:
+                        if isinstance(s, dict):
+                          subs.append(s.get("title"))
+                        else:
+                          subs.append(s)
+                    return ("module", obj, obj.get("module_title") or obj.get("title", "Module"), subs)
+                  mods = obj.get("modules")
+                  if mods:
+                    for m in mods:
+                      found = _find_quiz_location(m)
+                      if found:
+                        return found
+                elif isinstance(obj, list):
+                  for item in obj:
+                    found = _find_quiz_location(item)
+                    if found:
+                      return found
+                return None
+
+              def _rebalance_questions(questions: list[dict]) -> list[dict]:
+                counts = {"A": 0, "B": 0, "C": 0, "D": 0}
+                for q in questions:
+                  opt = q.get("correct_option")
+                  if opt in counts:
+                    counts[opt] += 1
+
+                # while any count >4, move some to the least frequent option
+                letters = ["A", "B", "C", "D"]
+                idx = 0
+                # Create a mutable list of indices by option
+                while any(v > 4 for v in counts.values()):
+                  # find an overrepresented letter
+                  over = max(counts, key=lambda k: counts[k])
+                  under = min(counts, key=lambda k: counts[k])
+                  # find a question index with over
+                  for q in questions:
+                    if q.get("correct_option") == over:
+                      q["correct_option"] = under
+                      counts[over] -= 1
+                      counts[under] += 1
+                      break
+                  idx += 1
+                  if idx > 20:
+                    break
+                return questions
+
+              loc = _find_quiz_location(parsed_content.get("payload"))
+              regenerated = False
+              if loc:
+                kind, parent, m_title, subs = loc
+                # Try regenerating up to 2 times
+                for attempt in range(2):
+                  try:
+                    new_questions = await cls.generate_isolated_quiz_block(m_title or "General", subs or [], history_meta)
+                  except Exception as ex:
+                    new_questions = None
+                  if new_questions:
+                    valid, why = _validate_quiz_questions(new_questions)
+                    if valid:
+                      if kind == "practice":
+                        parent["questions"] = new_questions
+                      else:
+                        parent["module_quiz"] = new_questions
+                      regenerated = True
+                      break
+
+                # If regeneration failed, attempt lightweight rebalancing if questions exist
+                if not regenerated and loc:
+                  existing_qs = parent.get("questions") or parent.get("module_quiz")
+                  if isinstance(existing_qs, list):
+                    balanced = _rebalance_questions(existing_qs)
+                    # final validate
+                    valid, why = _validate_quiz_questions(balanced)
+                    if valid:
+                      if kind == "practice":
+                        parent["questions"] = balanced
+                      else:
+                        parent["module_quiz"] = balanced
+                      regenerated = True
+
+              if not regenerated:
+                # as last resort, ask follow-up
+                return EduByteAIResponse(
+                  response_type=ResponseType.FOLLOW_UP,
+                  message="Generated quiz failed validation and automatic recovery.",
+                  payload=FollowUpPayload(response_type=ResponseType.FOLLOW_UP, clarification_text=f"Quiz validation failed: {reason}")
+                )
 
             return EduByteAIResponse.model_validate(parsed_content)
 

@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.models import Base, ChatSession, Module, User, UserProgress  # noqa: F401
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./edubyte.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    logging = __import__("logging")
+    logging.getLogger(__name__).warning("No DATABASE_URL found; falling back to local SQLite for hackathon/demo convenience.")
+    DATABASE_URL = "sqlite:///./edubyte.db"
 # Automatically fix raw 'postgres://' strings if provided by cloud hosting environments
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
