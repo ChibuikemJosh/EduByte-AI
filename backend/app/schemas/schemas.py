@@ -114,7 +114,7 @@ class EduByteAIResponse(BaseModel):
         ModuleContentPayload, 
         PracticeQuizPayload, 
         GeneralQuestionPayload
-    ] = Field(..., discriminator="response_type")
+    ]
 
 # =====================================================================
 # 4. PROGRESS & QUIZ SUBMISSION TRAFFIC SCHEMAS

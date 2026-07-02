@@ -6,4 +6,5 @@ psycopg2-binary
 pgvector
 langchain
 groq
-dotenv
+python-dotenv
+email-validator
