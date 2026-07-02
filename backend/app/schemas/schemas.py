@@ -78,17 +78,18 @@ class ModuleOutline(BaseModel):
     module_title: str = Field(..., description="High-level title of the module segment")
     subtopic_titles: List[str] = Field(..., description="Simple array of text titles to build the structural skeleton layout")
 
-class CourseOutlinePayload(BaseModel):
-    course_title: str = Field(..., description="Master title of the generated course roadmap")
-    subject: str = Field(..., description="The category domain profile classification")
-    modules: List[ModuleOutline] = Field(..., description="The skeleton outline framework mapping")
-
 # --- 💡 NEW Option C: Call 2 + Lazy Loading Content Blocks ---
 class ModuleContentPayload(BaseModel):
     module_number: int = Field(..., description="Identifies which structural node this content hydrator belongs to")
     module_title: str = Field(..., description="Name of the core module chapter")
     subtopics: List[SubTopicContent] = Field(..., description="Deep text-filled paragraphs")
     module_quiz: List[QuizQuestion] = Field(..., min_length=10, max_length=10, description="Strictly 10 questions")
+
+class CourseOutlinePayload(BaseModel):
+    course_title: str = Field(..., description="Master title of the generated course roadmap")
+    subject: str = Field(..., description="The category domain profile classification")
+    # 💡 ALLOW EITHER SKELETON OR FULLY HYDRATED MODULES IN THE LIST
+    modules: List[Union[ModuleOutline, ModuleContentPayload]] = Field(..., description="The skeleton outline framework mapping")
 
 # --- Option D: Standalone Assessments ---
 class PracticeQuizPayload(BaseModel):
@@ -114,7 +115,7 @@ class EduByteAIResponse(BaseModel):
         ModuleContentPayload, 
         PracticeQuizPayload, 
         GeneralQuestionPayload
-    ]
+    ] = Field(..., discriminator="response_type")
 
 # =====================================================================
 # 4. PROGRESS & QUIZ SUBMISSION TRAFFIC SCHEMAS

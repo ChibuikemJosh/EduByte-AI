@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Table
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 Base = declarative_base()
 
@@ -74,7 +75,7 @@ class ChatSession(Base):
     session_id = Column(String, unique=True, nullable=False, index=True)
     title = Column(String(255), default="New Chat", nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    history_meta = Column(JSON, default=list, nullable=False)
+    history_meta = Column(JSONB, default=list, nullable=False)
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
