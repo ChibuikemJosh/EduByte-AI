@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from typing import Any, Dict, List
@@ -6,7 +7,7 @@ from groq import Groq
 
 from app.schemas.schemas import EduByteAIResponse, FollowUpPayload, ResponseType
 
-load_dotenv()  # Load environment variables from .env file
+load_dotenv()
 
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -14,10 +15,10 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # =====================================================================
-# PROMPT 1: MASTER ROUTER &藍圖 GENERATOR (Call 1)
+# PROMPT 1: MASTER ROUTER & BLUEPRINT GENERATOR
 # =====================================================================
 MASTER_ROUTER_PROMPT = """
-You are the hyper-intelligent orchestrator core of EduByte AI, tailored for Nigerian learners and students. Your job is to analyze incoming requests and execute EXACTLY one path.
+You are the hyper-intelligent orchestrator core of EduByte AI, tailored for Nigerian learners. Your job is to analyze incoming requests and execute EXACTLY one path.
 
 ### DECISION TREE & CONFLICT RESOLUTION
 - RULE 1: If the user requests a learning path, syllabus, or course structure, select 'COURSE_OUTLINE'. Generate ONLY the high-level structural skeleton. Do not write full textbook paragraphs and add 5 or more modules in the course outline.
@@ -25,58 +26,8 @@ You are the hyper-intelligent orchestrator core of EduByte AI, tailored for Nige
 - RULE 3: If the user asks for a standalone test or review block on a topic, select 'PRACTICE_QUIZ'.
 - RULE 4: For general questions, casual chat, or short academic explanations, select 'GENERAL_QUESTION_ANSWER'.
 
-### EVALUATION QUIZ CRITICAL BALANCING CONSTRAINTS
-- For any generated quiz, you must provide exactly 10 questions numbered 1 to 10.
-- CRITICAL BUG FIX: You must deliberately distribute correct choices evenly across 'A', 'B', 'C', and 'D'. Avoid assigning 'A' or 'C' repeatedly. 
-- Double-check that your 'correct_option' accurately corresponds to the intended index value (A=0, B=1, C=2, D=3).
-
-### QUIZ ANTI-BIAS RULES (CRITICAL MANDATE)
-- You must generate exactly 10 questions for this module, numbered sequentially from 1 to 10.
-- 🚨 ANTI-BIAS ALGORITHM: You are FORBIDDEN from choosing the same letter for more than 3 answers across the entire quiz.
-- You must actively shuffle and alternate the correct option keys. Aim for a balanced distribution across the entire exam block (e.g., approximately two or three As, Bs, Cs, and Ds).
-- Double-check that your 'correct_option' character explicitly maps to the exact index of your text array option string (A=Index 0, B=Index 1, C=Index 2, D=Index 3).
-- Options arrays must be clean text choice strings without alphabetical prefixes like 'A)', 'B.', or 'A. '.
-
-
 ---
-
 ### OUTPUT SCHEMA EXAMPLES
-
-#### TYPE: FOLLOW_UP
-{
-  "response_type": "FOLLOW_UP",
-  "message": "I'm ready to build your track! Just need one detail.",
-  "payload": { "clarification_text": "Are you preparing for WAEC, JAMB, a university exam, professional exam or just want to learn something new?" }
-}
-
-#### TYPE: GENERAL_QUESTION_ANSWER
-{
-  "response_type": "GENERAL_QUESTION_ANSWER",
-  "message": "Here is the explanation you requested.",
-  "payload": { "answer": "The capital of Nigeria was officially relocated from Lagos to Abuja on December 12, 1991." }
-}
-
-#### TYPE: PRACTICE_QUIZ (⚠️ ALTERNATING CORRECT ANSWERS TO PREVENT BIAS)
-{
-  "response_type": "PRACTICE_QUIZ",
-  "message": "Here is your balanced assessment block.",
-  "payload": {
-    "quiz_title": "Backend Development",
-    "subject": "Computer Science",
-    "questions": [
-      { "question_id": 1, "question_text": "Which HTTP method is explicitly designed to retrieve data without changing it?", "options": ["POST", "GET", "PATCH", "DELETE"], "correct_option": "B" },
-      { "question_id": 2, "question_text": "What does backend routing primarily do?", "options": ["Stores user passwords in plain text", "Maps incoming URLs to handler functions", "Cleans the browser cache", "Builds the frontend layout"], "correct_option": "B" },
-      { "question_id": 3, "question_text": "Why is a database important in backend systems?", "options": ["It provides persistent data storage and retrieval", "It draws UI components automatically", "It replaces the need for APIs", "It only formats text on screens"], "correct_option": "A" },
-      { "question_id": 4, "question_text": "Which status code means a resource was not found?", "options": ["500", "201", "404", "301"], "correct_option": "C" },
-      { "question_id": 5, "question_text": "What does the 'C' in CRUD stand for?", "options": ["Control", "Compile", "Create", "Cache"], "correct_option": "C" },
-      { "question_id": 6, "question_text": "Which framework is commonly used for building APIs in Python?", "options": ["FastAPI", "Photoshop", "Excel", "PowerPoint"], "correct_option": "A" },
-      { "question_id": 7, "question_text": "What is authentication in backend development?", "options": ["Checking a user's identity", "Changing the page theme", "Compressing images", "Loading fonts"], "correct_option": "A" },
-      { "question_id": 8, "question_text": "Which database language is used to query relational data?", "options": ["HTML", "SQL", "CSS", "JSON"], "correct_option": "B" },
-      { "question_id": 9, "question_text": "What does middleware usually do in a backend request flow?", "options": ["Styles the application page", "Intercepts and processes requests between client and server logic", "Prints the database table", "Compresses video files"], "correct_option": "B" },
-      { "question_id": 10, "question_text": "Which practice helps protect sensitive backend secrets?", "options": ["Hard-coding them in public files", "Storing them in environment variables", "Sending them in URLs", "Writing them in comments"], "correct_option": "B" }
-    ]
-  }
-}
 
 #### TYPE: COURSE_OUTLINE
 {
@@ -87,108 +38,56 @@ You are the hyper-intelligent orchestrator core of EduByte AI, tailored for Nige
     "subject": "Computer Science",
     "modules": [
       { "module_number": 1, "module_title": "Foundations of Backend Execution", "subtopic_titles": ["Definition of a Server", "Understanding HTTP Request Protocols", "Intro to Routing Systems"] },
-      { "module_number": 2, "module_title": "Database Interactivity & Persistence", "subtopic_titles": ["SQL Foundations", "Object Relational Mappers (ORMs)", "Database Migrations"] },
-      { "module_number": 3, "module_title": "API Design and Data Exchange", "subtopic_titles": ["REST Principles", "JSON Payload Structure", "Request and Response Validation"] },
-      { "module_number": 4, "module_title": "Authentication and Authorization", "subtopic_titles": ["Session Handling", "Token-Based Authentication", "Role-Based Access Control"] },
-      { "module_number": 5, "module_title": "Deployment, Scaling, and Monitoring", "subtopic_titles": ["Environment Configuration", "Application Logging", "Production Deployment Basics"] }
+      { "module_number": 2, "module_title": "Database Interactivity & Persistence", "subtopic_titles": ["SQL Foundations", "Object Relational Mappers (ORMs)"] }
     ]
   }
 }
 """.strip()
 
 # =====================================================================
-# PROMPT 2: SINGLE MODULE CONTENT DEEP HYDRATOR (Call 2 & Lazy Loads)
+# 💡 MICRO-PROMPT 2: SINGLE SUBTOPIC CONTENT GENERATOR
 # =====================================================================
-MODULE_HYDRATION_PROMPT = """
-You are the high-depth textbook engine of EduByte AI. Your task is to accept a specific Module outline and flesh out its contents with heavy academic rigor and an accompanying balanced 10-question quiz.
+SUBTOPIC_CONTENT_PROMPT = """
+You are the high-depth textbook parsing node of EduByte AI. Your role is to write a comprehensive textbook section for ONE specific subtopic. 
+You are given the Master Module Title and a list of all accompanying subtopics to help you understand the architectural context and flow, but you must focus your core writing on the target subtopic.
 
-### CONTENT DEPTH RULES
-- Every subtopic must contain a minimum of 300 words of textbook-style depth across at least 4 descriptive paragraphs.
-- Use clean Markdown headers, bolding (`**text**`), and bullet points to break down concepts.
-
-### QUIZ ANTI-BIAS RULES (CRITICAL)
-- You must generate exactly 10 questions for this module.
-- CRITICAL: Systematically alternate your correct option labels among 'A', 'B', 'C', and 'D' (e.g., balance them out so no letter dominates). Double-check that your option index string perfectly matches the true factual answer text.
-- Options arrays must be clean strings without alphabetical prefixes.
+### CONTENT DEPTH MANDATES
+- Provide an extensive, exhaustive academic explanation for the target subtopic (minimum 350 words across 4 paragraphs).
+- Use clear Markdown formatting headers, bold terms, and descriptive bullet lists.
+- Provide a list of real-world code snippets or practical execution examples inside the `examples` array.
 
 ### OUTPUT JSON FORMAT
 {
-  "response_type": "MODULE_CONTENT",
-  "message": "Module contents compiled.",
-  "payload": {
-    "module_number": 1,
-    "module_title": "Foundations of Backend Execution",
-    "subtopics": [
-      {
-        "title": "Definition of a Server",
-        "content_markdown": "### Architectural Overview... (Ensure text depth exceeds 300 words here)",
-        "examples": ["An API endpoint routing HTTP GET requests to fetch data components dynamically."]
-      }
-    ],
-    "module_quiz": [
-      {
-        "question_id": 1,
-        "question_text": "Which component listens for and handles incoming network requests in a backend system?",
-        "options": ["Client application", "Database schema", "Server", "CSS engine"],
-        "correct_option": "C"
-      },
-      {
-        "question_id": 2,
-        "question_text": "What does HTTP stand for?",
-        "options": ["HyperText Transfer Protocol", "High Transfer Text Platform", "Hosted Transaction Task Process", "Hyperlink Transmission Package"],
-        "correct_option": "A"
-      },
-      {
-        "question_id": 3,
-        "question_text": "Which Python framework is widely used for building lightweight web APIs?",
-        "options": ["React", "FastAPI", "Photoshop", "Excel"],
-        "correct_option": "B"
-      },
-      {
-        "question_id": 4,
-        "question_text": "What is the main purpose of routing in backend development?",
-        "options": ["To match URLs to handler functions", "To create image assets", "To compress database files", "To change browser themes"],
-        "correct_option": "A"
-      },
-      {
-        "question_id": 5,
-        "question_text": "Which method is typically used to submit new data to a server?",
-        "options": ["GET", "POST", "TRACE", "HEAD"],
-        "correct_option": "B"
-      },
-      {
-        "question_id": 6,
-        "question_text": "What does a database provide for backend applications?",
-        "options": ["Persistent data storage", "Color themes", "Browser tabs", "Animation timing"],
-        "correct_option": "A"
-      },
-      {
-        "question_id": 7,
-        "question_text": "Which status code usually indicates a successful request?",
-        "options": ["404", "500", "200", "401"],
-        "correct_option": "C"
-      },
-      {
-        "question_id": 8,
-        "question_text": "What is middleware used for in a backend request lifecycle?",
-        "options": ["Interpreting requests before they reach the final handler", "Drawing page margins", "Editing media files", "Replacing the database"],
-        "correct_option": "A"
-      },
-      {
-        "question_id": 9,
-        "question_text": "What does CRUD represent in database operations?",
-        "options": ["Create, Read, Update, Delete", "Cache, Route, Upload, Deploy", "Code, Run, Understand, Debug", "Connect, Render, Use, Design"],
-        "correct_option": "A"
-      },
-      {
-        "question_id": 10,
-        "question_text": "Why are environment variables used in backend systems?",
-        "options": ["To store sensitive configuration outside source code", "To design page layouts", "To replace API routes", "To render graphics"],
-        "correct_option": "C"
-      }
-    ]
-  }
+  "title": "Target Subtopic Name",
+  "content_markdown": "### Conceptual Deep Dive...\\n\\nDetailed academic text here...",
+  "examples": [
+    "Example implementation step or code block sample configuration."
+  ]
 }
+""".strip()
+
+# =====================================================================
+# 💡 MICRO-PROMPT 3: TARGETED MODULE ASSESSMENT BLOCK GENERATOR
+# =====================================================================
+QUIZ_GENERATION_PROMPT = """
+You are the assessment engine of EduByte AI. Your task is to generate a rigorous, multi-option 10-question quiz explicitly matching a module and its subtopics.
+You are provided with the conversation history and context records to ensure alignment with any previous explanations or specialized themes discussed with the user.
+
+### QUIZ ANTI-BIAS RULES (CRITICAL MANDATE)
+- You must generate exactly 10 questions, numbered sequentially from 1 to 10.
+- 🚨 ANTI-BIAS ALGORITHM: You are FORBIDDEN from choosing the same letter for more than 3 answers across the entire quiz. Shuffling and alternating correct keys across the entire exam block is mandatory.
+- Double-check that your 'correct_option' character explicitly maps to the exact index of your text array option string (A=Index 0, B=Index 1, C=Index 2, D=Index 3).
+- Options arrays must be clean text choice strings without alphabetical prefixes like 'A)' or '1. '.
+
+### OUTPUT JSON FORMAT
+[
+  {
+    "question_id": 1,
+    "question_text": "Which component manages data persistence layer requirements safely?",
+    "options": ["Database management system", "Frontend layout wrapper", "CSS utility module", "Browser state cookie"],
+    "correct_option": "A"
+  }
+]
 """.strip()
 
 
@@ -200,106 +99,151 @@ class AIEngineService:
             role = "User" if turn.get("role") == "user" else "EduByteAI"
             content = turn.get("content", "")
             context_block += f"[{role}]: {content}\n"
-
         context_block += f"\nNEW CLIENT CURRENT UTTERANCE: '{current_message}'\n"
-        context_block += "Process context under strict architectural guidelines."
         return context_block
 
     @staticmethod
-    def _normalize_response_content(raw_content: str) -> Dict[str, Any]:
+    def _normalize_response_content(raw_content: str) -> Any:
         try:
             return json.loads(raw_content)
         except json.JSONDecodeError as exc:
             raise ValueError("Groq response was not valid JSON.") from exc
 
+    # =====================================================================
+    # 💡 NEW MICRO-FUNCTION: Generates one isolated subtopic text section
+    # =====================================================================
     @classmethod
-    async def hydrate_single_module(cls, course_title: str, subject: str, target_module: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Call 2 & Lazy Loading Method: Hydrates a clean skeleton module node 
-        with deep text arrays and an unbiased 10-question quiz.
-        """
+    async def generate_subtopic_text_block(
+        cls, module_title: str, all_subtopics: List[str], target_subtopic: str
+    ) -> Dict[str, Any]:
         if not client:
             raise RuntimeError("Groq Client uninitialized.")
 
         input_payload = {
-            "course_title": course_title,
-            "subject": subject,
-            "target_module_to_build": target_module
+            "parent_module_title": module_title,
+            "sibling_context_subtopics": all_subtopics,
+            "target_subtopic_to_explain": target_subtopic
         }
 
-        response = client.chat.completions.create(
+        # Wrapping synchronous Groq call in asyncio.to_thread to maintain asynchronous performance
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
             model=GROQ_MODEL,
             messages=[
-                {"role": "system", "content": MODULE_HYDRATION_PROMPT},
+                {"role": "system", "content": SUBTOPIC_CONTENT_PROMPT},
                 {"role": "user", "content": json.dumps(input_payload)},
             ],
             response_format={"type": "json_object"},
             temperature=0.25,
-            max_tokens=4000
+            max_tokens=2000
         )
         return cls._normalize_response_content(response.choices[0].message.content or "{}")
 
+    # =====================================================================
+    # 💡 NEW MICRO-FUNCTION: Generates an isolated 10-question quiz array
+    # =====================================================================
+    @classmethod
+    async def generate_isolated_quiz_block(
+        cls, module_title: str, subtopic_titles: List[str], history_meta: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        if not client:
+            raise RuntimeError("Groq Client uninitialized.")
+
+        input_payload = {
+            "module_title": module_title,
+            "subtopics_covered": subtopic_titles,
+            "historical_chat_context": history_meta
+        }
+
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": QUIZ_GENERATION_PROMPT},
+                {"role": "user", "content": json.dumps(input_payload)},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.15,
+            max_tokens=3000
+        )
+        raw_data = cls._normalize_response_content(response.choices[0].message.content or "{}")
+        # Ensure it returns the list array directly
+        return raw_data.get("questions", raw_data) if isinstance(raw_data, dict) else raw_data
+
+    # =====================================================================
+    # MAIN COHESIVE SYSTEM FLOW INTERACTION ORCHESTRATOR
+    # =====================================================================
     @classmethod
     async def process_user_intent(cls, current_message: str, history_meta: List[Dict[str, Any]]) -> EduByteAIResponse:
-        """
-        Master Router Orchestrator (Call 1). Parses general questions, 
-        quizzes, or outputs structural course blueprints.
-        """
         compiled_contents = cls.format_history_context(history_meta, current_message)
 
         try:
-            response = client.chat.completions.create(
+            response = await asyncio.to_thread(
+                client.chat.completions.create,
                 model=GROQ_MODEL,
                 messages=[
                     {"role": "system", "content": MASTER_ROUTER_PROMPT},
                     {"role": "user", "content": compiled_contents},
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.15,
+                temperature=0.10,
             ) if client else None
 
             raw_content = "{}"
             if response and response.choices and response.choices[0].message.content is not None:
-              raw_content = response.choices[0].message.content
+                raw_content = response.choices[0].message.content
 
             parsed_content = cls._normalize_response_content(raw_content)
-            
-            # --- TWO-STEP GENERATION PIPELINE INTERACTION ---
-            # If the LLM generates a course outline structure, immediately execute Call 2 
-            # for Module 1 so that the user receives initial content without separate loading delay.
+
+            # ⚡️ THE ASYNC PARALLEL GATHER INTERACTION PIPELINE
             if parsed_content.get("response_type") == ResponseType.COURSE_OUTLINE.value:
                 payload_data = parsed_content.get("payload", {})
                 modules_list = payload_data.get("modules", [])
-                
+
                 if modules_list:
-                    # Isolate Module 1 structural block
-                    module_one_skeleton = modules_list[0]
-                    
-                    # Call Call 2 right now to build detailed text and questions
-                    hydrated_data = await cls.hydrate_single_module(
-                        course_title=payload_data.get("course_title"),
-                        subject=payload_data.get("subject"),
-                        target_module=module_one_skeleton
-                    )
-                    
-                    # Merge deep content directly into the first index slot of your outline blueprint
-                    parsed_content["payload"]["modules"][0] = hydrated_data.get("payload", hydrated_data)
+                    mod_one = modules_list[0]
+                    m_title = mod_one.get("module_title")
+                    subs = mod_one.get("subtopic_titles", [])
+
+                    print(f"⚡️ [Orchestrator] Firing {len(subs)} Text and 1 Quiz generation tasks parallelly...")
+
+                    # Step A: Queue up text generation tasks for all subtopics simultaneously
+                    text_tasks = [cls.generate_subtopic_text_block(m_title, subs, s) for s in subs]
+                    # Step B: Queue up the quiz task concurrently
+                    quiz_task = cls.generate_isolated_quiz_block(m_title, subs, history_meta)
+
+                    # Step C: Await execution using asyncio.gather
+                    gathered_results = await asyncio.gather(*text_tasks, quiz_task)
+
+                    completed_subtopics = gathered_results[:-1]
+                    completed_quiz = gathered_results[-1]
+
+                    # Step D: Construct the hydrated module dictionary matching ModuleContentPayload
+                    hydrated_module_one = {
+                        "response_type": ResponseType.MODULE_CONTENT.value,
+                        "module_number": mod_one.get("module_number", 1),
+                        "module_title": m_title,
+                        "subtopics": completed_subtopics,
+                        "module_quiz": completed_quiz
+                    }
+
+                    # Overwrite index 0 with the fully populated component structure
+                    parsed_content["payload"]["modules"][0] = hydrated_module_one
+
+            # Inject response discriminator values to satisfy Pydantic validations cleanly
+            if "response_type" in parsed_content and "payload" in parsed_content:
+                if isinstance(parsed_content["payload"], dict):
+                    parsed_content["payload"]["response_type"] = parsed_content["response_type"]
 
             return EduByteAIResponse.model_validate(parsed_content)
 
         except Exception as e:
-            print("\n" + "="*60)
-            print(f"[AI_ENGINE_ERROR] Inference or Validation Failed!")
-            print(f"Error Details: {str(e)}")
-            print("="*60)
+            print(f"\n❌ [AI_ENGINE_ERROR] Pipeline Failure: {str(e)}")
             import traceback
             traceback.print_exc()
-            print("="*60 + "\n")
-            
+
             return EduByteAIResponse(
                 response_type=ResponseType.FOLLOW_UP,
-                message="I encountered a slight sorting glitch mapping out that request structure. Could you clarify your topic or specify the exact exam context again?",
-              payload=FollowUpPayload(
-                clarification_text="Please clarify your target learning objective or tracking subject syllabus parameters."
-              )
+                message="I encountered an extraction error setting up your track paths. Could you clarify your syllabus details?",
+                payload=FollowUpPayload(clarification_text="Please refine your targeted learning request.")
             )
