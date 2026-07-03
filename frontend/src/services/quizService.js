@@ -1,16 +1,8 @@
 import api from "./api";
 
-export const saveProgress = async(data)=>{
+export const submitQuiz = async(data)=>{
 
-    const res = await api.post("/progress",data);
-
-    return res.data;
-
-}
-
-export const getProgress = async(id)=>{
-
-    const res = await api.get(`/progress/${id}`);
+    const res = await api.post("/quiz/submit",data);
 
     return res.data;
 
