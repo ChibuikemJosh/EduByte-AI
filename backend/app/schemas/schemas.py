@@ -99,7 +99,7 @@ class PracticeQuizPayload(BaseModel):
     response_type: Literal[ResponseType.PRACTICE_QUIZ] = Field(ResponseType.PRACTICE_QUIZ, description="Explicitly identifies this payload as a practice quiz")
     quiz_title: str = Field(..., description="The specific tracking assessment module header name")
     subject: str = Field(...)
-    questions: List[QuizQuestion] = Field(..., min_length=10, max_length=10, description="Strictly 10 questions")
+    questions: List[QuizQuestion] = Field(..., min_length=1, description="Strictly 10 questions")
 
 # --- Option E: General Explanations or Greetings ---
 class GeneralQuestionPayload(BaseModel):
