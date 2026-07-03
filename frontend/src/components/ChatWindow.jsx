@@ -1,16 +1,30 @@
 import {useState} from "react";
 
+import {useRef,useEffect} from "react";
+
 import {sendMessage} from "../services/chat";
 
 import MessageRenderer from "./MessageRenderer";
 
 import {generateSession} from "../utils/session";
 
+const bottomRef=useRef();
+
 const session=generateSession();
 
 export default function ChatWindow(){
 
 const[input,setInput]=useState("");
+
+useEffect(()=>{
+
+bottomRef.current?.scrollIntoView({
+
+behavior:"smooth"
+
+})
+
+},[messages]);
 
 const[messages,setMessages]=useState([]);
 
@@ -97,6 +111,7 @@ Send
 </div>
 
 </div>
+<div ref={bottomRef}></div>
 
 )
 
