@@ -1,118 +1,135 @@
-import {useState} from "react";
-
-import {useRef,useEffect} from "react";
-
-import {sendMessage} from "../services/chat";
-
+import { useState, useRef, useEffect } from "react";
+import { sendMessage } from "../services/chatService";
 import MessageRenderer from "./MessageRenderer";
+import { generateSession } from "../utils/session";
 
-import {generateSession} from "../utils/session";
+const session = generateSession();
 
-const bottomRef=useRef();
+export default function ChatWindow() {
 
-const session=generateSession();
+    const [input, setInput] = useState("");
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-export default function ChatWindow(){
+    const bottomRef = useRef(null);
 
-const[input,setInput]=useState("");
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({
+            behavior: "smooth"
+        });
+    }, [messages]);
 
-useEffect(()=>{
+    const send = async () => {
 
-bottomRef.current?.scrollIntoView({
+        if (!input.trim()) return;
 
-behavior:"smooth"
+        const text = input;
 
-})
+        setInput("");
 
-},[messages]);
+        setMessages(prev => [
+            ...prev,
+            {
+                role: "user",
+                content: text
+            }
+        ]);
 
-const[messages,setMessages]=useState([]);
+        try {
 
-const send=async()=>{
+            setLoading(true);
 
-if(!input)return;
+            const res = await sendMessage(text, session);
 
-const userMessage={
+            setMessages(prev => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content: res.message,
+                    response_type: res.response_type,
+                    payload: res.payload
+                }
+            ]);
 
-role:"user",
+        } catch {
 
-content:input
+            setMessages(prev => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content: "Something went wrong."
+                }
+            ]);
 
-}
+        } finally {
 
-setMessages(prev=>[...prev,userMessage]);
+            setLoading(false);
 
-const res=await sendMessage(input,session);
+        }
 
-const ai={
+    };
 
-role:"assistant",
+    return (
 
-content:res.message,
+        <div className="chat-page">
 
-response_type:res.response_type,
+            <div className="messages">
 
-payload:res.payload
+                {
 
-}
+                    messages.map((message, index) => (
 
-setMessages(prev=>[...prev,ai]);
+                        <MessageRenderer
+                            key={index}
+                            message={message}
+                        />
 
-setInput("");
+                    ))
 
-}
+                }
 
-return(
+                <div ref={bottomRef}></div>
 
-<div className="chat-page">
+            </div>
 
-<div className="messages">
+            <div className="chat-input">
 
-{
+                <input
 
-messages.map((message,index)=>
+                    value={input}
 
-<MessageRenderer
+                    onChange={(e) => setInput(e.target.value)}
 
-key={index}
+                    onKeyDown={(e) => {
 
-message={message}
+                        if (e.key === "Enter") {
 
-/>
+                            send();
 
-)
+                        }
 
-}
+                    }}
 
-</div>
+                    placeholder="Ask EduByte AI..."
 
-<div className="chat-input">
+                />
 
-<input
+                <button
 
-value={input}
+                    disabled={loading}
 
-onChange={(e)=>setInput(e.target.value)}
+                    onClick={send}
 
-placeholder="Ask EduByte AI..."
+                >
 
-/>
+                    {loading ? "Thinking..." : "Send"}
 
-<button
+                </button>
 
-onClick={send}
+            </div>
 
->
+        </div>
 
-Send
-
-</button>
-
-</div>
-
-</div>
-<div ref={bottomRef}></div>
-
-)
+    );
 
 }
