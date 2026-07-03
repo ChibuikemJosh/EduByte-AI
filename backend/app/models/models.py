@@ -1,9 +1,12 @@
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, JSON, Table
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 # Many-to-Many Association Table for the Knowledge Graph
 # Maps which Module is a prerequisite for another Module
@@ -18,27 +21,35 @@ prerequisite_edges = Table(
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=False, nullable=False, index=True)
-    email = Column(String, unique=True, nullable=False, index=True)
-    phone_number = Column(String, unique=True, nullable=True, index=True)
-    password_hash = Column(String, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String, unique=False, nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    phone_number: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    progress_records = relationship("UserProgress", back_populates="user", cascade="all, delete-orphan")
-    chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
+    progress_records: Mapped[list["UserProgress"]] = relationship(
+        "UserProgress",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    chat_sessions: Mapped[list["ChatSession"]] = relationship(
+        "ChatSession",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class Module(Base):
     __tablename__ = "modules"
 
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    subject = Column(String, nullable=False)
-    content_body = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    subject: Mapped[str] = mapped_column(String, nullable=False)
+    content_body: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    prerequisites = relationship(
+    prerequisites: Mapped[list["Module"]] = relationship(
         "Module",
         secondary=prerequisite_edges,
         primaryjoin="Module.id == prerequisite_edges.c.child_id",
@@ -46,39 +57,43 @@ class Module(Base):
         backref="dependent_modules",
     )
 
-    progress_records = relationship("UserProgress", back_populates="module", cascade="all, delete-orphan")
+    progress_records: Mapped[list["UserProgress"]] = relationship(
+        "UserProgress",
+        back_populates="module",
+        cascade="all, delete-orphan",
+    )
 
 
 class UserProgress(Base):
     __tablename__ = "user_progress"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    module_id = Column(Integer, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False)
-    status = Column(String, default="LOCKED", nullable=False)
-    quiz_score = Column(Integer, nullable=True)
-    updated_at = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    module_id: Mapped[int] = mapped_column(Integer, ForeignKey("modules.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String, default="LOCKED", nullable=False)
+    quiz_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    user = relationship("User", back_populates="progress_records")
-    module = relationship("Module", back_populates="progress_records")
+    user: Mapped["User"] = relationship("User", back_populates="progress_records")
+    module: Mapped["Module"] = relationship("Module", back_populates="progress_records")
 
 
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String, unique=True, nullable=False, index=True)
-    title = Column(String(255), default="New Chat", nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    history_meta = Column(JSON, default=list, nullable=False)
-    updated_at = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    session_id: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), default="New Chat", nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    history_meta: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    user = relationship("User", back_populates="chat_sessions")
+    user: Mapped["User"] = relationship("User", back_populates="chat_sessions")

@@ -22,6 +22,14 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     username: str
 
+
+class UserRead(BaseModel):
+    id: int
+    username: str
+    email: EmailStr
+    phone_number: Optional[str] = None
+    created_at: Optional[str] = None
+
 # =====================================================================
 # 2. INBOUND CHAT & CORE REQUESTS
 # =====================================================================
