@@ -1,59 +1,47 @@
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+export default function CourseCard({ data }) {
 
-import CourseCard from "./CourseCard";
-import ModuleViewer from "./ModuleViewer";
+    return (
 
-export default function MessageRenderer({ message }) {
+        <div className="course-card">
 
-    // User messages
-    if (message.role === "user") {
-        return (
-            <div className="user">
-                {message.content}
-            </div>
-        );
-    }
+            <h2>{data.course_title}</h2>
 
-    // AI normal message
-    if (!message.response_type) {
+            <p>{data.subject}</p>
 
-        return (
-            <div className="assistant">
+            <br />
 
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {message.content}
-                </ReactMarkdown>
+            {
 
-            </div>
-        );
+                data.modules.map(module => (
 
-    }
+                    <div
 
-    switch(message.response_type){
+                        key={module.module_number}
 
-        case "COURSE_OUTLINE":
+                        className="module-preview"
 
-            return <CourseCard data={message.payload}/>
+                    >
 
-        case "MODULE_CONTENT":
+                        <h3>
 
-            return <ModuleViewer module={message.payload}/>
+                            Module {module.module_number}
 
-        default:
+                        </h3>
 
-            return(
+                        <p>
 
-                <div className="assistant">
+                            {module.module_title}
 
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.content}
-                    </ReactMarkdown>
+                        </p>
 
-                </div>
+                    </div>
 
-            )
+                ))
 
-    }
+            }
+
+        </div>
+
+    );
 
 }
