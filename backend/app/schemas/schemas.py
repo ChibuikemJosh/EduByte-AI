@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import List, Dict, Optional, Literal, Union
+from datetime import datetime
+from typing import Any, List, Dict, Optional, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator, EmailStr
 
 # =====================================================================
@@ -37,6 +38,45 @@ class UserRead(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str = Field(..., description="Unique UUID for web sessions, or Phone Number for WhatsApp users")
     message: str = Field(..., description="The user's text prompt, query, or material command")
+
+
+class ChatSessionCreate(BaseModel):
+    session_id: Optional[str] = Field(None, description="Client-provided UUID. If omitted, the backend creates one.")
+    title: str = Field("New Chat", min_length=1, max_length=255)
+
+
+class ChatSessionUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+
+
+class ChatMessageCreate(BaseModel):
+    role: Literal["user", "assistant", "system"] = "user"
+    content: str = Field(..., min_length=1)
+    payload_json: Optional[Dict[str, Any]] = None
+
+
+class ChatMessageRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    role: str
+    content: str
+    payload_json: Optional[Dict[str, Any]] = None
+    created_at: datetime
+
+
+class ChatSessionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    session_id: str
+    title: str
+    created_at: Optional[datetime] = None
+    updated_at: datetime
+
+
+class ChatSessionDetail(ChatSessionRead):
+    messages: List[ChatMessageRead] = Field(default_factory=list)
 
 # =====================================================================
 # 3. OUTBOUND POLYMORPHIC AI SCHEMAS (The Core Logic Engine)
@@ -102,6 +142,65 @@ class CourseOutlinePayload(BaseModel):
     # 💡 ALLOW EITHER SKELETON OR FULLY HYDRATED MODULES IN THE LIST
     modules: List[Union[ModuleOutline, ModuleContentPayload]] = Field(..., description="The skeleton outline framework mapping")
 
+
+class CourseCreate(BaseModel):
+    course_title: str = Field(..., min_length=1)
+    subject: str = Field(..., min_length=1)
+    source_session_id: Optional[str] = None
+    modules: List[Union[ModuleOutline, ModuleContentPayload]] = Field(default_factory=list)
+
+
+class CourseUpdate(BaseModel):
+    course_title: Optional[str] = Field(None, min_length=1)
+    subject: Optional[str] = Field(None, min_length=1)
+    modules: Optional[List[Union[ModuleOutline, ModuleContentPayload]]] = None
+
+
+class ModuleCreate(BaseModel):
+    module_number: int = Field(..., ge=1)
+    module_title: str = Field(..., min_length=1)
+    subtopic_titles: List[str] = Field(default_factory=list)
+    content: Optional[ModuleContentPayload] = None
+
+
+class ModuleUpdate(BaseModel):
+    module_number: Optional[int] = Field(None, ge=1)
+    module_title: Optional[str] = Field(None, min_length=1)
+    subtopic_titles: Optional[List[str]] = None
+    content: Optional[ModuleContentPayload] = None
+
+
+class ModuleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    course_id: Optional[int] = None
+    module_number: Optional[int] = None
+    title: str
+    subject: str
+    content_body: Optional[str] = None
+    subtopic_titles: List[str] = Field(default_factory=list)
+    content_json: Optional[Dict[str, Any]] = None
+    module_quiz: List[Dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class CourseRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    subject: str
+    source_session_id: Optional[str] = None
+    outline_json: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class CourseDetail(CourseRead):
+    modules: List[ModuleRead] = Field(default_factory=list)
+
 # --- Option D: Standalone Assessments ---
 class PracticeQuizPayload(BaseModel):
     response_type: Literal[ResponseType.PRACTICE_QUIZ] = Field(ResponseType.PRACTICE_QUIZ, description="Explicitly identifies this payload as a practice quiz")
@@ -142,3 +241,25 @@ class QuizSubmissionResponse(BaseModel):
     score: int = Field(..., description="Calculated test score scaling out of 100 percentage parameters")
     passed: bool = Field(..., description="Identifies if the score matches passing index thresholds to allow progression")
     next_action: str = Field(..., description="System instructions telling frontend to either unlock the next graph node or serve a warning refresher block")
+    correct_count: int = 0
+    total_questions: int = 0
+    unlocked_module_id: Optional[int] = None
+
+
+class ProgressUpdateRequest(BaseModel):
+    module_id: int
+    status: Literal["LOCKED", "UNLOCKED", "IN_PROGRESS", "COMPLETED", "PASSED"] = "IN_PROGRESS"
+    quiz_score: Optional[int] = Field(None, ge=0, le=100)
+
+
+class ProgressRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    module_id: int
+    status: str
+    quiz_score: Optional[int] = None
+    attempts: int = 0
+    passed_at: Optional[datetime] = None
+    updated_at: datetime

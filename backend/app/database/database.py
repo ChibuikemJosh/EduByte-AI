@@ -3,10 +3,10 @@ from __future__ import annotations
 import os
 from typing import Any, Iterator, TypeVar
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models.models import Base, ChatSession, Module, User, UserProgress  # noqa: F401
+from app.models.models import Base, ChatMessage, ChatSession, Course, Module, QuizSubmission, User, UserProgress  # noqa: F401
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
@@ -28,6 +28,45 @@ ModelType = TypeVar("ModelType")
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    if DATABASE_URL is None:
+        raise ValueError("DATABASE_URL is not set. Cannot initialize the database.")
+    if DATABASE_URL.startswith("sqlite"):
+        _ensure_sqlite_columns()
+
+
+def _ensure_sqlite_columns() -> None:
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    if "modules" in table_names:
+        module_columns = {column["name"] for column in inspector.get_columns("modules")}
+        module_additions = {
+            "course_id": "INTEGER",
+            "module_number": "INTEGER",
+            "subtopic_titles": "JSON NOT NULL DEFAULT '[]'",
+            "content_json": "JSON",
+            "module_quiz": "JSON NOT NULL DEFAULT '[]'",
+            "updated_at": "DATETIME",
+        }
+        _add_missing_sqlite_columns("modules", module_columns, module_additions)
+
+    if "chat_sessions" in table_names:
+        chat_columns = {column["name"] for column in inspector.get_columns("chat_sessions")}
+        _add_missing_sqlite_columns("chat_sessions", chat_columns, {"created_at": "DATETIME"})
+
+    if "user_progress" in table_names:
+        progress_columns = {column["name"] for column in inspector.get_columns("user_progress")}
+        _add_missing_sqlite_columns(
+            "user_progress",
+            progress_columns,
+            {"attempts": "INTEGER NOT NULL DEFAULT 0", "passed_at": "DATETIME"},
+        )
+
+
+def _add_missing_sqlite_columns(table_name: str, existing_columns: set[str], desired_columns: dict[str, str]) -> None:
+    with engine.begin() as connection:
+        for column_name, column_sql in desired_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}"))
 
 
 def get_db() -> Iterator[Session]:

@@ -8,10 +8,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.models import ChatSession, User
+from app.models.models import ChatMessage, ChatSession, User
 from app.routes.auth import get_current_user
-from app.schemas.schemas import ChatRequest, EduByteAIResponse, ModuleContentPayload
+from app.schemas.schemas import ChatRequest, CourseOutlinePayload, EduByteAIResponse, ModuleContentPayload
 from app.services.ai_engine import AIEngineService
+from app.services.persistence import create_course_from_payload
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -95,6 +96,39 @@ def _append_history_turns(chat_session: ChatSession, user_message: str, assistan
     chat_session.history_meta = history_meta[-MAX_HISTORY_TURNS:]
 
 
+def _store_chat_messages(
+    db: Session,
+    chat_session: ChatSession,
+    user_message: str,
+    response: EduByteAIResponse | ModuleContentPayload,
+    assistant_content: str,
+) -> None:
+    db.add(ChatMessage(session_id=chat_session.id, role="user", content=user_message))
+    db.add(
+        ChatMessage(
+            session_id=chat_session.id,
+            role="assistant",
+            content=assistant_content,
+            payload_json=response.model_dump(mode="json"),
+        )
+    )
+
+
+def _persist_generated_content(
+    db: Session,
+    current_user: User,
+    chat_session: ChatSession,
+    response: EduByteAIResponse,
+) -> None:
+    if isinstance(response.payload, CourseOutlinePayload):
+        create_course_from_payload(
+            db,
+            user=current_user,
+            payload=response.payload,
+            source_session_id=chat_session.session_id,
+        )
+
+
 @router.post("/chat", response_model=EduByteAIResponse)
 async def chat_with_ai(
     payload: ChatRequest,
@@ -115,6 +149,8 @@ async def chat_with_ai(
         ) from exc
 
     _append_history_turns(chat_session, payload.message, _compact_assistant_content(response))
+    _store_chat_messages(db, chat_session, payload.message, response, _compact_assistant_content(response))
+    _persist_generated_content(db, current_user, chat_session, response)
     db.commit()
     db.refresh(chat_session)
     return response
@@ -145,6 +181,13 @@ async def hydrate_module_content(
     _append_history_turns(
         chat_session,
         f"Hydrate module {payload.module_number}: {payload.module_title}",
+        assistant_content,
+    )
+    _store_chat_messages(
+        db,
+        chat_session,
+        f"Hydrate module {payload.module_number}: {payload.module_title}",
+        response,
         assistant_content,
     )
     db.commit()
