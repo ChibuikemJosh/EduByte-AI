@@ -1,6 +1,6 @@
 import {useState} from "react";
 
-import {register} from "../services/auth";
+import { register } from "../services/auth";
 
 import {useNavigate,Link} from "react-router-dom";
 
