@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.database.database import init_db
 from app.routes.ai import router as ai_router
 from app.routes.auth import router as auth_router
@@ -12,6 +14,15 @@ from app.routes.quiz import router as quiz_router
 
 app = FastAPI(title="EduByte AI Backend")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root_health_check() -> dict[str, str]:
