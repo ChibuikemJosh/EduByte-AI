@@ -9,32 +9,10 @@ import Quiz from "./pages/Quiz";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
-function App() {
+import Router from "./router";
 
-    return (
+export default function App(){
 
-        <Routes>
-
-            <Route path="/" element={<Login />} />
-
-            <Route path="/register" element={<Register />} />
-
-            <Route path="/dashboard" element={<Dashboard />} />
-
-            <Route path="/chat/:sessionId" element={<Chat />} />
-
-            <Route path="/course/:courseId" element={<Course />} />
-
-            <Route path="/quiz/:moduleId" element={<Quiz />} />
-
-            <Route path="/profile" element={<Profile />} />
-
-            <Route path="*" element={<NotFound />} />
-
-        </Routes>
-
-    );
+    return <Router/>
 
 }
-
-export default App;
