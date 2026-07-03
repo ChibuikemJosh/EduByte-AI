@@ -12,6 +12,7 @@ from app.schemas.schemas import (
     CourseOutlinePayload,
     EduByteAIResponse,
     FollowUpPayload,
+    ModuleContentPayload,
     ModuleOutline,
     ResponseType,
 )
@@ -681,6 +682,33 @@ class AIEngineService:
         return []
 
     @classmethod
+    async def generate_module_content_block(
+        cls,
+        *,
+        module_number: int,
+        module_title: str,
+        subtopic_titles: List[str],
+        history_meta: List[Dict[str, Any]],
+    ) -> ModuleContentPayload:
+        text_tasks = [
+            cls.generate_subtopic_text_block(module_title, subtopic_titles, subtopic_title)
+            for subtopic_title in subtopic_titles
+        ]
+        quiz_task = cls.generate_isolated_quiz_block(module_title, subtopic_titles, history_meta)
+        gathered_results = await asyncio.gather(*text_tasks, quiz_task)
+        completed_quiz = gathered_results[-1]
+
+        return ModuleContentPayload.model_validate(
+            {
+                "response_type": ResponseType.MODULE_CONTENT.value,
+                "module_number": module_number,
+                "module_title": module_title,
+                "subtopics": gathered_results[:-1],
+                "module_quiz": completed_quiz,
+            }
+        )
+
+    @classmethod
     async def process_user_intent(cls, current_message: str, history_meta: List[Dict[str, Any]]) -> EduByteAIResponse:
         compiled_contents = cls.format_history_context(history_meta, current_message)
 
@@ -740,24 +768,22 @@ class AIEngineService:
             modules_list = payload_data.get("modules", [])
             if modules_list:
                 mod_one = modules_list[0]
-                m_title = mod_one.get("module_title")
-                subs = mod_one.get("subtopic_titles", [])
+                m_title = mod_one.get("module_title") or "Untitled Module"
+                raw_subtopics = mod_one.get("subtopic_titles", [])
+                subs = raw_subtopics if isinstance(raw_subtopics, list) else []
                 print(f"⚡️ [Orchestrator] Firing {len(subs)} Text and 1 Quiz generation tasks parallelly...")
 
-                text_tasks = [cls.generate_subtopic_text_block(m_title, subs, s) for s in subs]
-                quiz_task = cls.generate_isolated_quiz_block(m_title, subs, history_meta)
-                gathered_results = await asyncio.gather(*text_tasks, quiz_task, return_exceptions=True)
-
-                if not any(isinstance(result, Exception) for result in gathered_results):
-                    completed_quiz = gathered_results[-1]
-                    if isinstance(completed_quiz, list):
-                        parsed_content["payload"]["modules"][0] = {
-                            "response_type": ResponseType.MODULE_CONTENT.value,
-                            "module_number": mod_one.get("module_number", 1),
-                            "module_title": m_title,
-                            "subtopics": gathered_results[:-1],
-                            "module_quiz": completed_quiz,
-                        }
+                try:
+                    module_content = await cls.generate_module_content_block(
+                        module_number=mod_one.get("module_number", 1),
+                        module_title=m_title,
+                        subtopic_titles=subs,
+                        history_meta=history_meta,
+                    )
+                except Exception:
+                    logging.exception("Failed to hydrate first module content.")
+                else:
+                    parsed_content["payload"]["modules"][0] = module_content.model_dump(mode="json")
 
         if isinstance(parsed_content.get("payload"), dict):
             parsed_content["payload"].setdefault("response_type", parsed_content.get("response_type"))
